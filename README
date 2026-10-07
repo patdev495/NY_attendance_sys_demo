@@ -1,0 +1,2 @@
+sau khi commit + deploy chạy
+ssh Admin@192.168.209.62 "cd /d D:\projects_production\NY_attendance_sys_new && if exist machines.txt copy /Y machines.txt ..\machines.txt.before-deploy && git fetch origin && git reset --hard origin/dev && if not exist machines.txt if exist ..\machines.txt.before-deploy copy /Y ..\machines.txt.before-deploy machines.txt && C:\Users\Admin\.local\bin\uv sync && nssm restart ny-attendance-8005"

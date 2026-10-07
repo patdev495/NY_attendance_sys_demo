@@ -1,0 +1,158 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { 
+  getMachinesCapacity, getMachineEmployees, addMachineEmployee, updateMachineEmployee, deleteMachineEmployee, bulkDeleteMachineEmployees,
+  updateEmployeeName, syncFingerprints, syncAllMachineFingerprints,
+  updateUserPrivilege, EXPORT_FINGERPRINTS_URL
+} from './api.js'
+
+export function sortMachinesByIp(list) {
+  if (!Array.isArray(list)) return []
+  return [...list].sort((a, b) => {
+    const ipA = typeof a === 'string' ? a : (a?.ip || '')
+    const ipB = typeof b === 'string' ? b : (b?.ip || '')
+    return ipA.localeCompare(ipB, undefined, { numeric: true, sensitivity: 'base' })
+  })
+}
+
+export const useMachineStore = defineStore('machines', () => {
+  const machines = ref([])
+  const machinesLoading = ref(false)
+
+  // Machine employee view
+  const currentIp = ref('')
+  const allEmployees = ref([])
+  const filteredEmployees = ref([])
+  const employeesLoading = ref(false)
+  const employeeError = ref(null)
+
+  // Filters
+  const searchTerm = ref('')
+  const sourceStatusFilter = ref('')
+  const idSortOrder = ref('asc') // 'asc' or 'desc'
+
+  // Pagination
+  const empPage = ref(1)
+  const empPageSize = 15
+
+  const exportUrl = EXPORT_FINGERPRINTS_URL
+  const filteredExportUrl = computed(() => {
+    return currentIp.value ? `${exportUrl}?ip=${encodeURIComponent(currentIp.value)}` : exportUrl
+  })
+
+  const empTotalPages = computed(() => Math.ceil(filteredEmployees.value.length / empPageSize))
+  const pagedEmployees = computed(() => {
+    const start = (empPage.value - 1) * empPageSize
+    return filteredEmployees.value.slice(start, start + empPageSize)
+  })
+
+  async function fetchMachines() {
+    machinesLoading.value = true
+    try {
+      const data = await getMachinesCapacity()
+      machines.value = sortMachinesByIp(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      machinesLoading.value = false
+    }
+  }
+
+  async function loadMachineEmployees(ip) {
+    currentIp.value = ip
+    allEmployees.value = []
+    filteredEmployees.value = []
+    searchTerm.value = ''
+    sourceStatusFilter.value = ''
+    idSortOrder.value = 'asc'
+    employeesLoading.value = true
+    employeeError.value = null
+
+    try {
+      const data = await getMachineEmployees(ip)
+      allEmployees.value = data.items
+      applyFilter()
+    } catch (e) {
+      employeeError.value = e.message
+    } finally {
+      employeesLoading.value = false
+    }
+  }
+
+  function applyFilter() {
+    const s = searchTerm.value.toLowerCase()
+    const st = sourceStatusFilter.value
+    
+    let result = allEmployees.value.filter(u => {
+      const matchSearch = !s ||
+        u.user_id.toLowerCase().includes(s) ||
+        (u.name && u.name.toLowerCase().includes(s)) ||
+        (u.db_name && u.db_name.toLowerCase().includes(s))
+      
+      const matchSource = !st || u.source_status === st
+      return matchSearch && matchSource
+    })
+
+    // Hanvon IDs can exceed JavaScript's safe integer range; sort as numeric strings.
+    result.sort((a, b) => {
+      const idA = String(a.user_id || '')
+      const idB = String(b.user_id || '')
+      const cmp = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' })
+      return idSortOrder.value === 'asc' ? cmp : -cmp
+    })
+
+    filteredEmployees.value = result
+    empPage.value = 1
+  }
+
+  async function deleteEmployee(employeeId) {
+    await deleteMachineEmployee(currentIp.value, employeeId)
+    await loadMachineEmployees(currentIp.value)
+  }
+
+  async function addEmployee(employeeId, name, role = 'employee', photoBase64 = '', promotionPassword = '') {
+    await addMachineEmployee(currentIp.value, employeeId, name, role, photoBase64, promotionPassword)
+    await loadMachineEmployees(currentIp.value)
+  }
+
+  async function updateEmployee(employeeId, payload) {
+    await updateMachineEmployee(currentIp.value, employeeId, payload)
+    await loadMachineEmployees(currentIp.value)
+  }
+
+  async function bulkDeleteEmployees(employeeIds) {
+    const res = await bulkDeleteMachineEmployees(currentIp.value, employeeIds)
+    await loadMachineEmployees(currentIp.value)
+    return res
+  }
+
+  async function renameEmployee(employeeId, newName) {
+    await updateEmployeeName(employeeId, newName)
+    await loadMachineEmployees(currentIp.value)
+  }
+
+  async function syncEmployeeFingerprints(employeeId) {
+    return await syncFingerprints(currentIp.value, employeeId)
+  }
+
+  async function bulkSyncFingerprints() {
+    return await syncAllMachineFingerprints(currentIp.value)
+  }
+
+  async function updatePrivilege(employeeId, privilege) {
+    await updateUserPrivilege(currentIp.value, employeeId, privilege)
+    const emp = allEmployees.value.find(u => u.user_id === employeeId)
+    if (emp) {
+      emp.privilege = privilege
+    }
+  }
+
+  return {
+    machines, machinesLoading,
+    currentIp, allEmployees, filteredEmployees, employeesLoading, employeeError,
+    searchTerm, sourceStatusFilter, idSortOrder, exportUrl, filteredExportUrl,
+    empPage, empPageSize, empTotalPages, pagedEmployees,
+    fetchMachines, loadMachineEmployees, applyFilter, addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees,
+    renameEmployee, syncEmployeeFingerprints, bulkSyncFingerprints, updatePrivilege
+  }
+})

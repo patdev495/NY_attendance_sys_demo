@@ -1,0 +1,19 @@
+node_modules/
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+backend/logs/
+dist/
+build/
+*.tar
+.vs/
+.pytest_cache/
+*.swp
+*.swo
+
+# Whitelist demo database
+!demo_data/
+!demo_data/attendance.db

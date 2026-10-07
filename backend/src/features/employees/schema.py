@@ -1,0 +1,58 @@
+from pydantic import BaseModel
+from typing import Optional, List, Dict
+from datetime import date, datetime
+
+class EmployeeBase(BaseModel):
+    employee_id: str
+    emp_name: Optional[str] = None
+
+class EmployeeOut(EmployeeBase):
+    full_emp_id: Optional[str] = None
+    department: Optional[str] = None
+    group_name: Optional[str] = None
+    start_date: Optional[date] = None
+    shift: Optional[str] = None
+    source_status: str
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class EmployeeListOut(BaseModel):
+    items: List[EmployeeOut]
+    total_count: int
+    page: int
+    page_size: int
+    total_pages: int
+
+class EmployeeUpdate(BaseModel):
+    emp_name: Optional[str] = None
+    department: Optional[str] = None
+    group_name: Optional[str] = None
+    shift: Optional[str] = None
+
+class UpdateStatusOut(BaseModel):
+    is_running: bool
+    status: str
+    progress: Optional[int] = 0
+
+class DeleteHardwareOut(BaseModel):
+    results: Dict[str, str]
+
+class UpdateHardwareOut(BaseModel):
+    results: Dict[str, str]
+
+class BiometricCoverageOut(BaseModel):
+    ip: str
+    status: str
+    registered: bool
+    role: str
+    has_face: bool
+    error: Optional[str] = None
+
+class CardPrintRequest(BaseModel):
+    employee_ids: List[str]
+
+class CardPrintBtxmlOut(BaseModel):
+    btxml: str
+

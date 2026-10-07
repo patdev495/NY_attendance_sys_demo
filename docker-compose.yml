@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: time_attendance_backend
+    volumes:
+      # Map .env so we don't have to rebuild to change config
+      - ./backend/.env:/app/backend/.env:ro
+      
+      # Map SQLite database for DEMO_MODE
+      - ./demo_data:/app/demo_data
+      
+      # Map data files
+      - ./machines.txt:/app/machines.txt:ro
+      - ./employee_work_shift.xlsx:/app/employee_work_shift.xlsx:ro
+      
+      # Map audio files
+      - ./audio:/app/backend/static/audio:ro
+
+      # Persist logs
+      - ./backend/logs:/app/backend/logs
+      
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: time_attendance_frontend
+    volumes:
+      - ./audio:/usr/share/nginx/html/audio:ro
+    ports:
+      - "127.0.0.1:8060:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
