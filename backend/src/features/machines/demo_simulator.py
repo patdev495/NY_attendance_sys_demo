@@ -27,9 +27,12 @@ class DemoLiveSimulator:
         self._employees = []
         self._status = {}
         
-        from shared.hardware import get_live_machine_list, get_canteen_machine_list
+        from shared.hardware import get_live_machine_list, get_machine_list, get_canteen_machine_list
         configs = get_live_machine_list()
         self._machine_ips = [c["ip"] for c in configs if not c["is_canteen"]]
+        if not self._machine_ips:
+            all_ips = get_machine_list()
+            self._machine_ips = all_ips if all_ips else ["192.168.209.61", "192.168.209.63", "192.168.209.65"]
         canteen_ips = get_canteen_machine_list()
         self._canteen_ip = canteen_ips[0] if canteen_ips else (self._machine_ips[0] if self._machine_ips else "127.0.0.1")
     
@@ -85,7 +88,7 @@ class DemoLiveSimulator:
             
             # 20% chance of canteen event, 80% normal attendance
             is_canteen = random.random() < 0.20
-            machine_ip = self._canteen_ip if is_canteen else random.choice(self._machine_ips)
+            machine_ip = self._canteen_ip if (is_canteen or not self._machine_ips) else random.choice(self._machine_ips)
             
             now = datetime.now()
             
